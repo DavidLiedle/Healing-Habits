@@ -106,34 +106,14 @@ impl App {
     }
 
     /// Check if a habit should be shown on a given date based on its frequency
-    fn should_show_habit(&self, habit: &crate::models::Habit, date: NaiveDate) -> bool {
+    fn should_show_habit(&self, habit: &crate::models::Habit, _date: NaiveDate) -> bool {
+        // All habits show every day regardless of frequency
+        // Frequency is informational only (tells you how often to do it)
         match habit.frequency {
             Frequency::Daily => true,
+            Frequency::Weekly => true,
             Frequency::AsNeeded => true,
-            Frequency::Weekly => {
-                // Show if not completed this week yet
-                !self.is_habit_done_this_week(habit.id, date)
-            }
         }
-    }
-
-    /// Check if a weekly habit has been marked as Done this week
-    fn is_habit_done_this_week(&self, habit_id: Uuid, date: NaiveDate) -> bool {
-        let week = Week::containing(date);
-        let days = week.days();
-
-        // Only check days up to and including the current date
-        for &day in &days {
-            if day > date {
-                break;
-            }
-
-            if let HabitStatus::Done = self.get_habit_status(habit_id, day) {
-                return true;
-            }
-        }
-
-        false
     }
 
     /// Get the currently selected habit (from the filtered list for the selected date)
@@ -246,7 +226,39 @@ impl App {
     pub fn commit_staged_status(&mut self) -> Result<()> {
         if let Some((habit_id, date, status)) = self.staged_status.take() {
             self.storage.update_log_status(habit_id, date, status)?;
+
+            // For Weekly habits marked as Done, auto-fill the week
+            if let Some(habit) = self.storage.get_habit(habit_id) {
+                if habit.frequency == Frequency::Weekly && status == HabitStatus::Done {
+                    self.propagate_weekly_habit_status(habit_id, date)?;
+                }
+            }
         }
+        Ok(())
+    }
+
+    /// Propagate Weekly habit status across the week
+    /// When marked Done on a day, mark previous days as Skipped (if unmarked)
+    /// Future days remain unmarked (no entry needed)
+    fn propagate_weekly_habit_status(&mut self, habit_id: Uuid, done_date: NaiveDate) -> Result<()> {
+        let week = Week::containing(done_date);
+        let days = week.days();
+
+        for &day in &days {
+            if day < done_date {
+                // Previous days in the week: mark as Skipped (if unmarked)
+                let current_status = self.storage.get_log(habit_id, day)
+                    .map(|log| log.status)
+                    .unwrap_or(HabitStatus::Unmarked);
+
+                if current_status == HabitStatus::Unmarked {
+                    self.storage.update_log_status(habit_id, day, HabitStatus::Skipped)?;
+                }
+            }
+            // Future days (day > done_date) remain unmarked
+            // day == done_date is already marked as Done by the initial update
+        }
+
         Ok(())
     }
 

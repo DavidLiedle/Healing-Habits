@@ -6,13 +6,12 @@ A TUI (Text User Interface) habit tracker designed for tracking self-care habits
 
 - **Weekly Tracking**: Track habits across Monday-Sunday cycles
 - **Habit Frequencies**: Three frequency types to match your routine
-  - **Daily**: Appears every day (Shower, Brush teeth, Meds)
-  - **Weekly**: Appears once per week with rolling behavior (Trim nails)
-  - **As-needed**: Always visible but no pressure
-- **Smart Rolling Todos**: Weekly habits stay visible until marked Done
-  - Skip them on Monday? They roll to Tuesday automatically
-  - Mark as Skipped? Keeps showing (you're tracking the miss)
-  - Mark as Done? Disappears for the rest of the week
+  - **Daily**: Should be done every day (Shower, Brush teeth, Meds)
+  - **Weekly**: Should be done once per week (Trim nails)
+    - When marked Done on a day, previous days auto-fill as Skipped
+    - Example: Mark Done on Tuesday → Monday becomes Skipped, Wed-Sun stay unmarked
+  - **As-needed**: Do as needed, no specific frequency
+  - All habits show every day - frequency is informational only
 - **Non-Destructive Status Cycling**: Cycle through statuses before saving
   - Press Space/Enter repeatedly to find the right status
   - ESC to cancel if you cycled by mistake
@@ -179,8 +178,7 @@ cargo build --release
 - [x] Week strip with day status symbols
 - [x] Daily habit list with status toggle
 - [x] Non-destructive status cycling (stage before save)
-- [x] Habit frequencies (Daily, Weekly, As-needed)
-- [x] Rolling todos for weekly habits
+- [x] Habit frequencies (Daily, Weekly, As-needed - informational)
 - [x] Weekly statistics view
 - [x] Persistent JSON storage
 - [x] Navigation (days/weeks/habits)
