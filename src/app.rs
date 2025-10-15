@@ -225,12 +225,23 @@ impl App {
     /// Commit any staged status changes to storage
     pub fn commit_staged_status(&mut self) -> Result<()> {
         if let Some((habit_id, date, status)) = self.staged_status.take() {
+            // Get old status before updating
+            let old_status = self.storage.get_log(habit_id, date)
+                .map(|log| log.status)
+                .unwrap_or(HabitStatus::Unmarked);
+
             self.storage.update_log_status(habit_id, date, status)?;
 
-            // For Weekly habits marked as Done, auto-fill the week
+            // For Weekly habits, handle propagation
             if let Some(habit) = self.storage.get_habit(habit_id) {
-                if habit.frequency == Frequency::Weekly && status == HabitStatus::Done {
-                    self.propagate_weekly_habit_status(habit_id, date)?;
+                if habit.frequency == Frequency::Weekly {
+                    if status == HabitStatus::Done {
+                        // Marking as Done: auto-fill previous days as Skipped
+                        self.propagate_weekly_habit_status(habit_id, date)?;
+                    } else if old_status == HabitStatus::Done {
+                        // Changed from Done to something else: clear auto-propagation
+                        self.clear_weekly_habit_propagation(habit_id, date)?;
+                    }
                 }
             }
         }
@@ -259,6 +270,15 @@ impl App {
             // day == done_date is already marked as Done by the initial update
         }
 
+        Ok(())
+    }
+
+    /// Clear Weekly habit auto-propagation
+    /// When changing from Done to Skipped/Unmarked, leave previous entries as-is
+    /// (Don't clear them since we can't tell if they were manual or auto-filled)
+    fn clear_weekly_habit_propagation(&mut self, _habit_id: Uuid, _changed_date: NaiveDate) -> Result<()> {
+        // No-op: leave previous entries unchanged
+        // If Monday was Skipped (either manually or auto), it stays Skipped
         Ok(())
     }
 
