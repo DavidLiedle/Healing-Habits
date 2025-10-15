@@ -31,6 +31,28 @@ A TUI (Text User Interface) habit tracker designed for tracking self-care habits
 
 ## Installation
 
+### Download Pre-built Binaries (Recommended)
+
+Download the latest release for your platform from the [Releases page](https://github.com/davidliedle/Healing-Habits/releases):
+
+- **Linux (x86_64)**: `healing-habits-linux-x86_64.tar.gz`
+- **Linux (ARM64)**: `healing-habits-linux-aarch64.tar.gz`
+- **macOS (Intel)**: `healing-habits-macos-x86_64.tar.gz`
+- **macOS (Apple Silicon)**: `healing-habits-macos-aarch64.tar.gz`
+- **Windows (x86_64)**: `healing-habits-windows-x86_64.zip`
+
+Extract the archive and run the binary:
+
+```bash
+# Linux/macOS
+tar xzf healing-habits-*.tar.gz
+chmod +x healing-habits
+./healing-habits
+
+# Windows
+# Extract the .zip file and run healing-habits.exe
+```
+
 ### From Source
 
 ```bash
