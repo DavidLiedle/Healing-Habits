@@ -92,25 +92,52 @@ fn handle_key_event(app: &mut App, key: KeyCode) -> Result<()> {
 
 fn handle_main_view_keys(app: &mut App, key: KeyCode) -> Result<()> {
     match key {
-        KeyCode::Char('q') => app.quit(),
-        KeyCode::Left => app.prev_day(),
-        KeyCode::Right => app.next_day(),
-        KeyCode::Up => app.prev_habit(),
-        KeyCode::Down => app.next_habit(),
-        KeyCode::Enter => app.toggle_habit_status()?,
-        KeyCode::Char('n') => app.start_note_input(),
+        KeyCode::Char('q') => {
+            app.commit_staged_status()?;
+            app.quit();
+        }
+        KeyCode::Esc => app.cancel_staged_status(),
+        KeyCode::Left => app.prev_day()?,
+        KeyCode::Right => app.next_day()?,
+        KeyCode::Up => app.prev_habit()?,
+        KeyCode::Down => app.next_habit()?,
+        KeyCode::Enter | KeyCode::Char(' ') => app.toggle_habit_status(),
+        KeyCode::Char('n') => {
+            app.commit_staged_status()?;
+            app.start_note_input();
+        }
         KeyCode::Char('w') => {
-            // Week navigation
-            // For now, just go to current week
+            app.commit_staged_status()?;
             app.go_to_today();
         }
-        KeyCode::Char('v') => app.set_view(AppView::Stats),
-        KeyCode::Char('h') => app.enter_habit_management(),
-        KeyCode::Char('?') => app.set_view(AppView::Help),
-        KeyCode::Char('t') => app.go_to_today(),
-        KeyCode::Char('[') => app.prev_week(),
-        KeyCode::Char(']') => app.next_week(),
-        KeyCode::Char('x') => app.export_and_show_confirmation()?,
+        KeyCode::Char('v') => {
+            app.commit_staged_status()?;
+            app.set_view(AppView::Stats);
+        }
+        KeyCode::Char('h') => {
+            app.commit_staged_status()?;
+            app.enter_habit_management();
+        }
+        KeyCode::Char('?') => {
+            app.commit_staged_status()?;
+            app.set_view(AppView::Help);
+        }
+        KeyCode::Char('t') => {
+            app.commit_staged_status()?;
+            app.go_to_today();
+        }
+        KeyCode::Char('[') => {
+            app.commit_staged_status()?;
+            app.prev_week();
+        }
+        KeyCode::Char(']') => {
+            app.commit_staged_status()?;
+            app.next_week();
+        }
+        KeyCode::Char('x') => {
+            app.commit_staged_status()?;
+            app.export_and_show_confirmation()?;
+        }
         _ => {}
     }
     Ok(())
@@ -124,11 +151,9 @@ fn handle_stats_view_keys(app: &mut App, key: KeyCode) -> Result<()> {
     Ok(())
 }
 
-fn handle_help_view_keys(app: &mut App, key: KeyCode) -> Result<()> {
-    match key {
-        KeyCode::Char('q') | KeyCode::Esc => app.set_view(AppView::Main),
-        _ => {}
-    }
+fn handle_help_view_keys(app: &mut App, _key: KeyCode) -> Result<()> {
+    // Any key returns to main view
+    app.set_view(AppView::Main);
     Ok(())
 }
 
@@ -146,6 +171,7 @@ fn handle_habit_mgmt_keys(app: &mut App, key: KeyCode) -> Result<()> {
                 KeyCode::Char('d') => app.delete_selected_habit()?,
                 KeyCode::Char('[') => app.move_habit_up()?,
                 KeyCode::Char(']') => app.move_habit_down()?,
+                KeyCode::Char('f') => app.cycle_habit_frequency()?,
                 _ => {}
             }
         }

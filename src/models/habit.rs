@@ -1,6 +1,34 @@
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
+/// Frequency at which a habit should be tracked
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub enum Frequency {
+    /// Should be done every day
+    Daily,
+    /// Should be done once per week (rolls over if not completed)
+    Weekly,
+    /// Optional habit, no specific frequency
+    AsNeeded,
+}
+
+impl Frequency {
+    /// Get a human-readable description
+    pub fn description(&self) -> &'static str {
+        match self {
+            Frequency::Daily => "Daily",
+            Frequency::Weekly => "Weekly",
+            Frequency::AsNeeded => "As needed",
+        }
+    }
+}
+
+impl Default for Frequency {
+    fn default() -> Self {
+        Frequency::Daily
+    }
+}
+
 /// Represents a habit that can be tracked
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Habit {
@@ -12,6 +40,9 @@ pub struct Habit {
     pub description: Option<String>,
     /// Display order (lower numbers appear first)
     pub order: usize,
+    /// How often this habit should be done
+    #[serde(default)]
+    pub frequency: Frequency,
 }
 
 impl Habit {
@@ -22,6 +53,7 @@ impl Habit {
             name: name.into(),
             description: None,
             order: 0,
+            frequency: Frequency::default(),
         }
     }
 
@@ -32,6 +64,7 @@ impl Habit {
             name: name.into(),
             description: None,
             order: 0,
+            frequency: Frequency::default(),
         }
     }
 
@@ -42,6 +75,7 @@ impl Habit {
             name: name.into(),
             description: Some(description.into()),
             order: 0,
+            frequency: Frequency::default(),
         }
     }
 
@@ -54,6 +88,11 @@ impl Habit {
     pub fn set_order(&mut self, order: usize) {
         self.order = order;
     }
+
+    /// Set the frequency
+    pub fn set_frequency(&mut self, frequency: Frequency) {
+        self.frequency = frequency;
+    }
 }
 
 /// Default habits for new users
@@ -62,17 +101,26 @@ pub fn default_habits() -> Vec<Habit> {
         {
             let mut h = Habit::new("Shower");
             h.set_order(0);
+            h.set_frequency(Frequency::Daily);
             h
         },
         {
             let mut h = Habit::new("Brush teeth");
             h.set_order(1);
+            h.set_frequency(Frequency::Daily);
             h
         },
         {
             let mut h = Habit::new("Trim nails");
-            h.set_description(Some("As needed".to_string()));
+            h.set_description(Some("Weekly habit".to_string()));
             h.set_order(2);
+            h.set_frequency(Frequency::Weekly);
+            h
+        },
+        {
+            let mut h = Habit::new("Meds");
+            h.set_order(3);
+            h.set_frequency(Frequency::Daily);
             h
         },
     ]
@@ -107,11 +155,12 @@ mod tests {
     #[test]
     fn test_default_habits() {
         let habits = default_habits();
-        assert_eq!(habits.len(), 3);
+        assert_eq!(habits.len(), 4);
         assert_eq!(habits[0].name, "Shower");
         assert_eq!(habits[1].name, "Brush teeth");
         assert_eq!(habits[2].name, "Trim nails");
-        assert_eq!(habits[2].description, Some("As needed".to_string()));
+        assert_eq!(habits[2].description, Some("Weekly habit".to_string()));
+        assert_eq!(habits[3].name, "Meds");
     }
 
     #[test]
@@ -120,5 +169,6 @@ mod tests {
         assert_eq!(habits[0].order, 0);
         assert_eq!(habits[1].order, 1);
         assert_eq!(habits[2].order, 2);
+        assert_eq!(habits[3].order, 3);
     }
 }

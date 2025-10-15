@@ -45,7 +45,7 @@ fn draw_habit_list(f: &mut Frame, app: &App) {
             } else {
                 "  "
             };
-            let content = format!("{}{}", prefix, habit.name);
+            let content = format!("{}{:<30} [{}]", prefix, habit.name, habit.frequency.description());
             let style = if idx == app.habit_mgmt_selected_idx {
                 Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)
             } else {
@@ -76,8 +76,10 @@ fn draw_habit_list(f: &mut Frame, app: &App) {
         Line::from(vec![
             Span::styled("[]", Style::default().fg(Color::Yellow)),
             Span::raw(" Move Up/Down  "),
+            Span::styled("f", Style::default().fg(Color::Cyan)),
+            Span::raw(" Change Frequency  "),
             Span::styled("q/Esc", Style::default().fg(Color::Green)),
-            Span::raw(" Return to Main"),
+            Span::raw(" Return"),
         ]),
     ];
 

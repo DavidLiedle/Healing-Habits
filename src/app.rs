@@ -2,7 +2,7 @@ use anyhow::{Context, Result};
 use chrono::{Local, NaiveDate};
 use uuid::Uuid;
 
-use crate::models::{HabitStatus, Week};
+use crate::models::{Frequency, HabitStatus, Week};
 use crate::storage::Storage;
 
 /// Different screens/views in the application
@@ -55,6 +55,8 @@ pub struct App {
     pub habit_mgmt_selected_idx: usize,
     /// Last export file path
     pub last_export_path: Option<std::path::PathBuf>,
+    /// Staged status change (habit_id, date, new_status) that hasn't been saved yet
+    pub staged_status: Option<(Uuid, NaiveDate, HabitStatus)>,
 }
 
 impl App {
@@ -82,6 +84,7 @@ impl App {
             habit_mgmt_mode: HabitMgmtMode::List,
             habit_mgmt_selected_idx: 0,
             last_export_path: None,
+            staged_status: None,
         })
     }
 
@@ -95,13 +98,55 @@ impl App {
         self.storage.habits()
     }
 
-    /// Get the currently selected habit
+    /// Get habits that should be shown for a given date, respecting frequency
+    pub fn habits_for_date(&self, date: NaiveDate) -> Vec<&crate::models::Habit> {
+        self.storage.habits().into_iter()
+            .filter(|habit| self.should_show_habit(habit, date))
+            .collect()
+    }
+
+    /// Check if a habit should be shown on a given date based on its frequency
+    fn should_show_habit(&self, habit: &crate::models::Habit, date: NaiveDate) -> bool {
+        match habit.frequency {
+            Frequency::Daily => true,
+            Frequency::AsNeeded => true,
+            Frequency::Weekly => {
+                // Show if not completed this week yet
+                !self.is_habit_done_this_week(habit.id, date)
+            }
+        }
+    }
+
+    /// Check if a weekly habit has been marked as Done this week
+    fn is_habit_done_this_week(&self, habit_id: Uuid, date: NaiveDate) -> bool {
+        let week = Week::containing(date);
+        let days = week.days();
+
+        // Only check days up to and including the current date
+        for &day in &days {
+            if day > date {
+                break;
+            }
+
+            if let HabitStatus::Done = self.get_habit_status(habit_id, day) {
+                return true;
+            }
+        }
+
+        false
+    }
+
+    /// Get the currently selected habit (from the filtered list for the selected date)
     pub fn selected_habit(&self) -> Option<&crate::models::Habit> {
-        self.habits().get(self.selected_habit_idx).copied()
+        let date = self.selected_date();
+        self.habits_for_date(date).get(self.selected_habit_idx).copied()
     }
 
     /// Navigate to the previous day
-    pub fn prev_day(&mut self) {
+    pub fn prev_day(&mut self) -> Result<()> {
+        // Commit any staged changes before navigating
+        self.commit_staged_status()?;
+
         if self.selected_day_idx > 0 {
             self.selected_day_idx -= 1;
         } else {
@@ -109,10 +154,16 @@ impl App {
             self.current_week = self.current_week.prev();
             self.selected_day_idx = 6;
         }
+        // Reset habit selection when changing days
+        self.selected_habit_idx = 0;
+        Ok(())
     }
 
     /// Navigate to the next day
-    pub fn next_day(&mut self) {
+    pub fn next_day(&mut self) -> Result<()> {
+        // Commit any staged changes before navigating
+        self.commit_staged_status()?;
+
         if self.selected_day_idx < 6 {
             self.selected_day_idx += 1;
         } else {
@@ -120,11 +171,18 @@ impl App {
             self.current_week = self.current_week.next();
             self.selected_day_idx = 0;
         }
+        // Reset habit selection when changing days
+        self.selected_habit_idx = 0;
+        Ok(())
     }
 
     /// Navigate to the previous habit
-    pub fn prev_habit(&mut self) {
-        let habit_count = self.habits().len();
+    pub fn prev_habit(&mut self) -> Result<()> {
+        // Commit any staged changes before navigating
+        self.commit_staged_status()?;
+
+        let date = self.selected_date();
+        let habit_count = self.habits_for_date(date).len();
         if habit_count > 0 {
             if self.selected_habit_idx > 0 {
                 self.selected_habit_idx -= 1;
@@ -132,11 +190,16 @@ impl App {
                 self.selected_habit_idx = habit_count - 1;
             }
         }
+        Ok(())
     }
 
     /// Navigate to the next habit
-    pub fn next_habit(&mut self) {
-        let habit_count = self.habits().len();
+    pub fn next_habit(&mut self) -> Result<()> {
+        // Commit any staged changes before navigating
+        self.commit_staged_status()?;
+
+        let date = self.selected_date();
+        let habit_count = self.habits_for_date(date).len();
         if habit_count > 0 {
             if self.selected_habit_idx < habit_count - 1 {
                 self.selected_habit_idx += 1;
@@ -144,6 +207,7 @@ impl App {
                 self.selected_habit_idx = 0;
             }
         }
+        Ok(())
     }
 
     /// Navigate to the previous week
@@ -166,17 +230,41 @@ impl App {
             .unwrap_or(0);
     }
 
-    /// Toggle the status of the selected habit for the selected date
-    pub fn toggle_habit_status(&mut self) -> Result<()> {
+    /// Toggle the status of the selected habit for the selected date (stages change, doesn't save)
+    pub fn toggle_habit_status(&mut self) {
         if let Some(habit) = self.selected_habit() {
             let date = self.selected_date();
-            self.storage.toggle_log_status(habit.id, date)?;
+            let current_status = self.get_habit_status(habit.id, date);
+            let new_status = current_status.cycle();
+
+            // Stage the change instead of saving immediately
+            self.staged_status = Some((habit.id, date, new_status));
+        }
+    }
+
+    /// Commit any staged status changes to storage
+    pub fn commit_staged_status(&mut self) -> Result<()> {
+        if let Some((habit_id, date, status)) = self.staged_status.take() {
+            self.storage.update_log_status(habit_id, date, status)?;
         }
         Ok(())
     }
 
-    /// Get the status for a habit on a specific date
+    /// Cancel any staged status changes without saving
+    pub fn cancel_staged_status(&mut self) {
+        self.staged_status = None;
+    }
+
+    /// Get the status for a habit on a specific date (checks staged changes first)
     pub fn get_habit_status(&self, habit_id: Uuid, date: NaiveDate) -> HabitStatus {
+        // Check if there's a staged change for this habit and date
+        if let Some((staged_id, staged_date, staged_status)) = self.staged_status {
+            if staged_id == habit_id && staged_date == date {
+                return staged_status;
+            }
+        }
+
+        // Otherwise get from storage
         self.storage.get_log(habit_id, date)
             .map(|log| log.status)
             .unwrap_or(HabitStatus::Unmarked)
@@ -206,7 +294,7 @@ impl App {
     /// ✓ = All habits done, ✗ = Some skipped, ~ = Partial, space = Unmarked/future
     pub fn get_day_status(&self, day_idx: usize) -> char {
         let date = self.current_week.day(day_idx).unwrap();
-        let habits = self.habits();
+        let habits = self.habits_for_date(date);
 
         if habits.is_empty() {
             return ' ';
@@ -391,6 +479,23 @@ impl App {
         if habit_count > 0 && self.habit_mgmt_selected_idx < habit_count - 1 {
             self.habit_mgmt_selected_idx += 1;
         }
+    }
+
+    /// Cycle through frequencies for the selected habit
+    pub fn cycle_habit_frequency(&mut self) -> Result<()> {
+        if let Some(habit) = self.habits().get(self.habit_mgmt_selected_idx) {
+            let habit_id = habit.id;
+            let current_frequency = habit.frequency;
+
+            let new_frequency = match current_frequency {
+                Frequency::Daily => Frequency::Weekly,
+                Frequency::Weekly => Frequency::AsNeeded,
+                Frequency::AsNeeded => Frequency::Daily,
+            };
+
+            self.storage.update_habit_frequency(habit_id, new_frequency)?;
+        }
+        Ok(())
     }
 
     // Export Methods

@@ -52,15 +52,12 @@ fn draw_day(f: &mut Frame, area: Rect, app: &App, day_idx: usize) {
         Style::default()
     };
 
+    // Combine day name and status symbol on the same line
     let text = vec![
-        Line::from(Span::styled(
-            format!(" {} ", day_name),
-            style,
-        )),
-        Line::from(Span::styled(
-            format!(" [{}] ", status_symbol),
-            style,
-        )),
+        Line::from(vec![
+            Span::styled(format!("{} ", day_name), style),
+            Span::styled(format!("[{}]", status_symbol), style),
+        ]),
     ];
 
     let paragraph = Paragraph::new(text);

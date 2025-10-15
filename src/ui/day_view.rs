@@ -44,7 +44,7 @@ pub fn draw(f: &mut Frame, area: Rect, app: &App) {
 /// Draw the habits list for the selected day
 fn draw_habits_list(f: &mut Frame, area: Rect, app: &App) {
     let selected_date = app.selected_date();
-    let habits = app.habits();
+    let habits = app.habits_for_date(selected_date);
 
     if habits.is_empty() {
         let block = Block::default()
@@ -105,7 +105,7 @@ fn draw_note_section(f: &mut Frame, area: Rect, app: &App) {
     let text = if let Some(note_text) = note {
         format!("Note: {}", note_text)
     } else {
-        "No note for this habit. Press 'n' to add one (not yet implemented).".to_string()
+        "No note for this habit. Press 'n' to add one.".to_string()
     };
 
     let block = Block::default()

@@ -5,6 +5,18 @@ A TUI (Text User Interface) habit tracker designed for tracking self-care habits
 ## Features
 
 - **Weekly Tracking**: Track habits across Monday-Sunday cycles
+- **Habit Frequencies**: Three frequency types to match your routine
+  - **Daily**: Appears every day (Shower, Brush teeth, Meds)
+  - **Weekly**: Appears once per week with rolling behavior (Trim nails)
+  - **As-needed**: Always visible but no pressure
+- **Smart Rolling Todos**: Weekly habits stay visible until marked Done
+  - Skip them on Monday? They roll to Tuesday automatically
+  - Mark as Skipped? Keeps showing (you're tracking the miss)
+  - Mark as Done? Disappears for the rest of the week
+- **Non-Destructive Status Cycling**: Cycle through statuses before saving
+  - Press Space/Enter repeatedly to find the right status
+  - ESC to cancel if you cycled by mistake
+  - Changes save automatically when you navigate away
 - **Three Status Types**:
   - Done (✓): Habit completed
   - Skipped (✗): Intentionally skipped
@@ -12,9 +24,11 @@ A TUI (Text User Interface) habit tracker designed for tracking self-care habits
 - **Week Strip View**: Visual overview of the entire week with status symbols
 - **Daily Details**: See all habits for a selected day with their statuses
 - **Notes Support**: Add emotional notes when logging or skipping habits
+- **Habit Management**: Add, edit, delete, reorder, and set frequency
 - **Weekly Statistics**: View completion rates and trends
+- **Export Reports**: Generate markdown reports for therapy check-ins
 - **Persistent Storage**: All data saved to JSON automatically
-- **Default Habits**: Starts with: Shower, Brush teeth, Trim nails
+- **Default Habits**: Starts with: Shower (Daily), Brush teeth (Daily), Trim nails (Weekly), Meds (Daily)
 
 ## Installation
 
@@ -59,7 +73,11 @@ cargo run
 
 The application will:
 1. Create a data directory automatically on first run
-2. Initialize with three default habits (Shower, Brush teeth, Trim nails)
+2. Initialize with four default habits with smart frequencies:
+   - Shower (Daily)
+   - Brush teeth (Daily)
+   - Trim nails (Weekly - rolls over if not completed)
+   - Meds (Daily)
 3. Display the main TUI interface with the current week
 4. Auto-save all changes to disk
 
@@ -76,17 +94,29 @@ Press `?` at any time to see the help screen with all keyboard shortcuts.
 - `t` : Go to today
 
 #### Actions
-- `Enter` : Toggle habit status (Done → Skipped → Unmarked → Done)
+- `Space` / `Enter` : Cycle habit status (stages change, doesn't save yet)
+- `Esc` : Cancel staged status change
 - `n` : Add/edit note for selected habit
+
+**Note**: Status changes save automatically when you navigate to a different day/habit or switch views.
 
 #### Views
 - `v` : View weekly statistics
-- `h` : Manage habits (add/edit/delete/reorder)
+- `h` : Manage habits (add/edit/delete/reorder/set frequency)
 - `x` : Export week to markdown
 - `?` : Show help screen
 
+#### Habit Management (press 'h')
+- `↑` / `↓` : Navigate habits
+- `a` : Add new habit
+- `e` : Edit habit name
+- `d` : Delete habit
+- `f` : Cycle frequency (Daily → Weekly → As-needed)
+- `[` / `]` : Move habit up/down in list
+- `q` / `Esc` : Return to main view
+
 #### Other
-- `q` / `Esc` : Return to main view / Quit
+- `q` : Quit (saves any staged changes)
 - `Ctrl+C` : Quit immediately
 
 ## UI Layout
@@ -148,15 +178,19 @@ cargo build --release
 
 - [x] Week strip with day status symbols
 - [x] Daily habit list with status toggle
+- [x] Non-destructive status cycling (stage before save)
+- [x] Habit frequencies (Daily, Weekly, As-needed)
+- [x] Rolling todos for weekly habits
 - [x] Weekly statistics view
 - [x] Persistent JSON storage
 - [x] Navigation (days/weeks/habits)
 - [x] Note editing functionality
-- [x] Habit management (add/remove/edit/reorder)
+- [x] Habit management (add/remove/edit/reorder/frequency)
 - [x] Export weekly report for therapy
 - [ ] Multi-week history view
 - [ ] Habit streaks and trends
 - [ ] Customizable habit categories
+- [ ] Configurable week start day
 
 ## License
 

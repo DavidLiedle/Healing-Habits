@@ -6,7 +6,7 @@ use std::fs;
 use std::path::PathBuf;
 use uuid::Uuid;
 
-use crate::models::{Habit, HabitLog, HabitStatus};
+use crate::models::{Frequency, Habit, HabitLog, HabitStatus};
 
 /// Storage container for all habit tracking data
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -126,6 +126,16 @@ impl Storage {
         }
     }
 
+    /// Update a habit's frequency
+    pub fn update_habit_frequency(&mut self, id: Uuid, frequency: Frequency) -> Result<()> {
+        if let Some(habit) = self.data.habits.iter_mut().find(|h| h.id == id) {
+            habit.frequency = frequency;
+            self.save()
+        } else {
+            anyhow::bail!("Habit not found")
+        }
+    }
+
     /// Remove a habit (alias for delete_habit)
     pub fn remove_habit(&mut self, id: Uuid) -> Result<()> {
         self.delete_habit(id)
@@ -238,7 +248,7 @@ mod tests {
     fn test_storage_new() {
         let temp_file = NamedTempFile::new().unwrap();
         let storage = Storage::new(temp_file.path());
-        assert_eq!(storage.data.habits.len(), 3); // Default habits
+        assert_eq!(storage.data.habits.len(), 4); // Default habits
     }
 
     #[test]
@@ -249,14 +259,14 @@ mod tests {
         {
             let mut storage = Storage::new(&path);
             storage.load().unwrap();
-            assert_eq!(storage.data.habits.len(), 3);
+            assert_eq!(storage.data.habits.len(), 4);
         }
 
         // Load again to verify persistence
         {
             let mut storage = Storage::new(&path);
             storage.load().unwrap();
-            assert_eq!(storage.data.habits.len(), 3);
+            assert_eq!(storage.data.habits.len(), 4);
         }
     }
 
